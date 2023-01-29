@@ -18,7 +18,7 @@ public class Group {
     }
 
     public int getNumberOfParticipants() {
-        return numberOfParticipants;
+        return numberOfParticipants;/////////;
     }
 
     public void setNumberOfParticipants(int numberOfParticipants) {

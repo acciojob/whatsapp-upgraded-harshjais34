@@ -1,130 +1,59 @@
-
 package com.driver;
 
-import net.bytebuddy.asm.Advice;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.LinkedList;
 import java.util.List;
 
-
+@Service
 public class WhatsappService {
-    @Autowired
-    WhatsappRepository wr;
-    List<User> usersList;
-    static int GroupCount=1;
-    static int msgCount=1;
-    public String createUser(String name, String mobile) {
-        if(!wr.getUserMobile().contains(mobile)) {
-            User user = new User(name, mobile);
-            wr.getUserMobile().add(mobile);
-            usersList.add(user);
-            return "SUCCESS";
-        }
-        throw new IllegalArgumentException("Mobile number already exists in the database");
+    WhatsappRepository whatsappRepository = new WhatsappRepository();
+
+    public String createUser(String name, String mobile) throws Exception {
+        return whatsappRepository.createUser(name, mobile);
     }
 
-    public Group createGroup(List<User> users) {
-        String groupName = "";
-        if (users.size() < 2) {
-            throw new IllegalArgumentException("Creation of group not Possible");
-        } else if (users.size() > 2) {
-            String GroupName = "Group " + wr.getCustomGroupCount()+1;
-            if (!wr.getGroupUserMap().containsKey(GroupName)) {
-                Group group = new Group(GroupName, users.size());
-                wr.getGroupUserMap().put(group,users);
-                wr.setCustomGroupCount(wr.getCustomGroupCount()+1);
-                wr.getAdminMap().put(group,users.get(0));
-
-            }
-            else {
-                throw new IllegalArgumentException("Invalid group");
-            }
-        }
-        else if (users.size() == 2) {
-            String GroupName = users.get(1).getName();
-            if (!wr.getGroupUserMap().containsKey(GroupName)) {
-                Group group = new Group(GroupName, users.size());
-                wr.getGroupUserMap().put(group,users);
-                wr.getAdminMap().put(group,users.get(0));
-            }
-            else {
-                throw new IllegalArgumentException("Invalid group");
-            }
-        }
-        return null;
-
-    }
-    public int createMessage(String content) {
-        Message message=new Message(wr.getMessageId()+1, content,new Date());
-        wr.getMessageHashMap().put(wr.getMessageId()+1,message);
-        wr.setMessageId(wr.getMessageId()+1);
-        return wr.getMessageId();
+    public Group createGroup(List<User> users){
+        // The list contains at least 2 users where the first user is the admin.
+        // If there are only 2 users, the group is a personal chat and the group name should be kept as the name of the second user(other than admin)
+        // If there are 2+ users, the name of group should be "Group #count". For example, the name of first group would be "Group 1", second would be "Group 2" and so on.
+        // Note that a personal chat is not considered a group and the count is not updated for personal chats.
+        return whatsappRepository.createGroup(users);
     }
 
-    public int sendMessage(Message message, User sender, Group group) {
-        if(!wr.getUserMobile().contains(sender.getMobile())){
-            throw new IllegalArgumentException("user does not exist");
-        }
-        if(!wr.getGroupUserMap().containsKey(group)){
-            throw new IllegalArgumentException("Group does not exist");
-        }
-        else{
-            boolean flag=false;
-            List<User> list=wr.getGroupUserMap().get(group);
-            for(User u:list){
-                if(u.equals(sender)){
-                    flag=true;
-                }
-            }
-            if(!flag){
-                throw new IllegalArgumentException("You are not allowed to send message");
-            }
-        }
-        List<Message> l=new LinkedList<Message>();
-        if(wr.getGroupMessageMap().get(group)!=null){
-            l=wr.getGroupMessageMap().get(group);
-            l.add(message);
-        }
-        else {
-            l.add(message);
-            wr.getGroupMessageMap().put(group,l);
-        }
-        return message.getId();
+    public int createMessage(String content){
+        // The 'i^th' created message has message id 'i'.
+        return whatsappRepository.createMessage(content);
     }
 
-    public String changeAdmin(User approver, User user, Group group) {
-        if(!wr.getAdminMap().containsKey(group)){
-            throw new IllegalArgumentException("Group does not exist");
-        }
-        if(!wr.getAdminMap().get(group).equals(approver)){
-            throw new  IllegalArgumentException("Approver does not have rights");
-        }
-        if (wr.getAdminMap().containsKey(group)){
-            boolean flag=false;
-            for(User u:wr.getGroupUserMap().get(group)){
-                if(u.equals(user)){
-                    flag=true;
-                }
-                if(!flag){
-                    throw new IllegalArgumentException("User is not a participant");
-                }
-                else{
-                    wr.getAdminMap().put(group,user);
-                    return "SUCCESS";
-                }
-            }
-        }
-        return "fail";
+    public int sendMessage(Message message, User sender, Group group) throws Exception{
+        //Throw "Group does not exist" if the mentioned group does not exist
+        //Throw "You are not allowed to send message" if the sender is not a member of the group
+
+        return  whatsappRepository.sendMessage(message, sender, group);
     }
 
-    public int removeUser(User user) {
-        return 0;
+    public String changeAdmin(User approver, User user, Group group) throws Exception{
+        //Change the admin of the group to "user".
+        //Throw "Group does not exist" if the mentioned group does not exist
+        //Throw "Approver does not have rights" if the approver is not the current admin of the group
+        //Throw "User is not a participant" if the user is not a part of the group
+        return whatsappRepository.changeAdmin(approver, user, group);
     }
 
-    public String findMessage(Date start, Date end, int k) {
-        return null;
+    public int removeUser(User user) throws Exception{
+        //If user is not found in any group, throw "User not found" exception
+        //If user is found in a group and it is the admin, throw "Cannot remove admin" exception
+        //If user is not the admin, remove the user from the group, remove all its messages from all the databases, and update relevant attributes accordingly.
+
+        return whatsappRepository.removeUser(user);
+    }
+
+    public String findMessage(Date start, Date end, int K) throws Exception{
+        // Find the Kth latest message between start and end (excluding start and end)
+        //   If the number of messages between given time is less than K, throw "K is greater than the number of messages" exception
+
+        return whatsappRepository.findMessage(start, end, K);
     }
 }
+
